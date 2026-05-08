@@ -1,0 +1,112 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitive Helpers
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // User Entity Validation
+    function isValidUserCreate(data) {
+      let isAllowedRole = data.role in ['user', 'agent', 'promoter', 'admin'];
+      let validStatus = (data.role == 'user' && data.status == 'active') || 
+                        (data.role in ['agent', 'promoter'] && data.status == 'pending') ||
+                        (data.role == 'admin' && data.status == 'active');
+      return data.keys().hasAll(['uid', 'customId', 'role', 'status', 'email', 'name', 'walletBalance', 'createdAt', 'membership', 'referralCount', 'metrics']) &&
+             data.uid == request.auth.uid &&
+             data.customId is string && data.customId.size() >= 8 && data.customId.size() <= 12 &&
+             isAllowedRole &&
+             validStatus &&
+             data.email is string && data.email.size() > 0 &&
+             data.name is string && data.name.size() > 0 &&
+             data.walletBalance == 0 &&
+             data.createdAt == request.time &&
+             data.membership == 'basic' &&
+             data.referralCount == 0 &&
+             data.metrics is map &&
+             data.metrics.keys().hasAll(['totalSpent', 'lastRewardEventStatus']) &&
+             data.metrics.totalSpent == 0 &&
+             data.metrics.lastRewardEventStatus == 'pending' &&
+             (!('phone' in data) || data.phone is string) &&
+             (!('referredBy' in data) || data.referredBy == null || data.referredBy is string) &&
+             (!('agentId' in data) || data.agentId == null || data.agentId is string);
+    }
+
+    // Optional fields logic handled below during insert
+
+    match /users/{userId} {
+      // Admin can read all users
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'agent' && resource.data.agentId == request.auth.uid));
+
+      allow create: if isSignedIn() && 
+                       isValidId(userId) && 
+                       userId == request.auth.uid && 
+                       incoming().uid == userId &&
+                       (
+                         // Strict mode keys size validation depends on optional
+                         (incoming().keys().size() >= 11 && incoming().keys().size() <= 14)
+                       ) &&
+                       // Core required
+                       isValidUserCreate(incoming());
+
+      allow update: if isSignedIn() && isValidId(userId) && (
+                         (isAdmin()) || 
+                         (userId == request.auth.uid &&
+                          incoming().diff(existing()).affectedKeys().hasAny(['name', 'phone']) &&
+                          incoming().uid == existing().uid &&
+                          incoming().customId == existing().customId &&
+                          incoming().role == existing().role &&
+                          incoming().status == existing().status &&
+                          incoming().walletBalance == existing().walletBalance &&
+                          incoming().membership == existing().membership
+                         )
+                       );
+
+      allow delete: if isAdmin();
+    }
+
+    // Transaction validation
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['userId', 'type', 'amount', 'status', 'createdAt']) &&
+             data.keys().size() == 5 &&
+             data.userId == request.auth.uid &&
+             data.type in ['deposit', 'withdraw'] &&
+             data.amount is number && data.amount > 0 &&
+             data.status == 'pending' &&
+             data.createdAt == request.time;
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      
+      allow create: if isSignedIn() && 
+                       isValidId(transactionId) && 
+                       incoming().userId == request.auth.uid &&
+                       isValidTransaction(incoming());
+
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true; // Public marketplace
+      allow write: if false; // Only admin via function or backend
+    }
+  }
+}

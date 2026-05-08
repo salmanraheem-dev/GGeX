@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-background-dark: #0A0A0A;
+  --color-background-light: #F8F9FB;
+  --color-surface-dark: #121212;
+  --color-surface-light: #FFFFFF;
+  --color-accent-primary: #00D1FF;
+  --color-accent-secondary: #0066FF;
+  --color-accent-gold: #FFD700;
+  --color-accent-goldLight: #FFC94D;
+
+  --font-sora: "Sora", sans-serif;
+  --font-inter: "Inter", sans-serif;
+
+  /* We can define custom utilities as needed or define background images like this */
+  /* Wait, background-image gradients aren't correctly handled as simple var themes in some cases.
+     Let's define custom utilities. */
+}
+
+@utility bg-gradient-premium {
+  background-image: linear-gradient(135deg, #00D1FF 0%, #0066FF 100%);
+}
+
+@utility bg-gradient-gold {
+  background-image: linear-gradient(135deg, #FFD700 0%, #FFB700 50%, #FFC94D 100%);
+}
+
+@utility bg-glass-dark {
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%);
+}
+
+@utility text-gradient-premium {
+  background-image: linear-gradient(135deg, #00D1FF 0%, #0066FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

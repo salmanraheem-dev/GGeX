@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role, references, and wallet metrics",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "customId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "agent", "promoter", "admin"] },
+        "status": { "type": "string", "enum": ["active", "pending"] },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "referredBy": { "type": "string" },
+        "agentId": { "type": "string" },
+        "walletBalance": { "type": "number" },
+        "membership": { "type": "string" },
+        "referralCount": { "type": "number" },
+        "createdAt": { "type": "object" },
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "totalSpent": { "type": "number" },
+            "lastRewardEventStatus": { "type": "string" }
+          }
+        }
+      },
+      "required": ["uid", "customId", "role", "status", "email", "name", "walletBalance"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Deposit and withdrawal requests",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["deposit", "withdraw"] },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "object" }
+      },
+      "required": ["userId", "type", "amount", "status", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Marketplace product details",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["name", "category", "price", "image", "description"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Wallet transactions"
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Marketplace products"
+    }
+  }
+}
